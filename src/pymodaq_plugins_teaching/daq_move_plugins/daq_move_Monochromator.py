@@ -5,6 +5,9 @@ from pymodaq.control_modules.move_utility_classes import (DAQ_Move_base, comon_p
 
 from pymodaq_utils.utils import ThreadCommand  # object used to send info back to the main thread
 from pymodaq_gui.parameter import Parameter
+from pymodaq_data import Q_
+
+# from pymodaq.control_modules
 
 from pymodaq_plugins_teaching.hardware.spectrometer import Spectrometer
 
@@ -89,9 +92,8 @@ class DAQ_Move_Monochromator(DAQ_Move_base):
 
     def close(self):
         """Terminate the communication protocol"""
-        ## TODO for your custom plugin
-        raise NotImplemented  # when writing your own plugin remove this line
-        #  self.controller.your_method_to_terminate_the_communication()  # when writing your own plugin replace this line
+        if self.is_master:
+            self.controller.close_communication()  # when writing your own plugin replace this line
 
     def commit_settings(self, param: Parameter):
         """Apply the consequences of a change of value in the detector settings
@@ -108,8 +110,13 @@ class DAQ_Move_Monochromator(DAQ_Move_base):
             # if the motors connected to the controller are of different type (mm, µm, nm, , etc...)
             # see BrushlessDCMotor from the thorlabs plugin for an exemple
 
-        elif param.name() == "a_parameter_you've_added_in_self.params":
-           self.controller.your_method_to_apply_this_param_change()
+        elif param.name() == "grating":
+           self.controller.grating = param.value()
+           self.get_actuator_value()
+           self.emit_status(ThreadCommand(
+               'Update_Status',
+               [f'Grating updated to {self.controller.grating}.']
+           ))
         else:
             pass
 
@@ -127,6 +134,13 @@ class DAQ_Move_Monochromator(DAQ_Move_base):
         initialized: bool
             False if initialization failed otherwise True
         """
+        # self.emit_status(
+        #     ThreadCommand(
+        #         ThreadStatus.UPDATE_UI,
+        #         'set_abs_value_green',
+        #         args=(Q_('300 nm'))
+        #     )
+        # )
 
         if self.is_master:  # is needed when controller is master
             self.controller = Spectrometer() #  arguments for instantiation!)
@@ -148,7 +162,6 @@ class DAQ_Move_Monochromator(DAQ_Move_base):
         value = self.check_bound(value)  #if user checked bounds, the defined bounds are applied here
         self.target_value = value
         value = self.set_position_with_scaling(value)  # apply scaling if the user specified one
-        ## TODO for your custom plugin
         self.controller.set_wavelength(value.value(self.axis_unit),'abs')  # when writing your own plugin replace this line
         self.emit_status(ThreadCommand('Update_Status', ['Some info you want to log']))
 
@@ -168,16 +181,13 @@ class DAQ_Move_Monochromator(DAQ_Move_base):
 
     def move_home(self):
         """Call the reference method of the controller"""
-
-        ## TODO for your custom plugin
-        raise NotImplemented  # when writing your own plugin remove this line
-        self.controller.your_method_to_get_to_a_known_reference()  # when writing your own plugin replace this line
+        value = self.controller.data_wavelength()
+        value = self.set_position_with_scaling(value)
+        self.controller.set_wavelength(value.value(self.axis_unit),'abs')  # when writing your own plugin replace this line
         self.emit_status(ThreadCommand('Update_Status', ['Some info you want to log']))
 
     def stop_motion(self):
       """Stop the actuator and emits move_done signal"""
-
-      ## TODO for your custom plugin
       self.controller.stop()  # when writing your own plugin replace this line
       self.emit_status(ThreadCommand('Update_Status', ['Some info you want to log']))
 
