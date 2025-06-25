@@ -1,9 +1,7 @@
 import numpy as np
 import pymodaq.utils.math_utils
 
-from pymodaq_utils.utils import ThreadCommand
 from pymodaq_data.data import DataToExport, Axis
-from pymodaq_gui.parameter import Parameter
 
 from pymodaq.control_modules.viewer_utility_classes import DAQ_Viewer_base, comon_parameters, main
 from pymodaq.utils.data import DataFromPlugins
@@ -32,36 +30,42 @@ class DAQ_1DViewer_Spectrometer_advanced(DAQ_1DViewer_Spectrometer):
         kwargs: dict
             others optionals arguments
         """
+
+
         # Check what the new dimension of x_axis
         data_x_axis = self.controller.get_wavelength_axis()
         self.x_axis = Axis(data=data_x_axis, label='wavelength', units='nm', index=0)
 
+        spectrum = self.controller.grab_spectrum()
+        wavelength = self.controller.get_wavelength_axis()
+        moments = pymodaq.utils.math_utils.my_moment(wavelength, spectrum)
+        moments_bis = pymodaq.utils.math_utils.my_moment(spectrum, wavelength)
+
         data_tot = self.controller.grab_spectrum()
         self.dte_signal.emit(DataToExport(
             'myplugin',
-            data=[DataFromPlugins(
-                name='Mock1',
-                data=[data_tot],
-                dim='Data1D',
-                labels=['spectrum'],
-                axes=[self.x_axis])
-            ])
+            data=[
+                DataFromPlugins(
+                    name='Mock1',
+                    data=[data_tot],
+                    dim='Data1D',
+                    labels=['spectrum'],
+                    axes=[self.x_axis]),
+                DataFromPlugins(
+                    name='Standard deviation',
+                    data=[np.atleast_1d(moments[0])],
+                    dim='Data0D',
+                    labels=['average']
+                ),
+                DataFromPlugins(
+                    name='Standard deviation',
+                    data=[np.atleast_1d(moments_bis[1])],
+                    dim='Data0D',
+                    labels=['standard deviation']
+                )
+            ]
         )
-
-        data_tot = self.controller.grab_spectrum()
-        data_m = pymodaq.utils.math_utils.my_moment(self.x_axis, data_tot)
-
-        self.dte_signal.emit(DataToExport(
-            'myplugin',
-            data=[DataFromPlugins(
-                name='Standard deviation',
-                data=data_m,
-                dim='Data0D',
-                labels=['spectrum']
-            )
-            ])
         )
-
 
 if __name__ == '__main__':
     main(__file__)
